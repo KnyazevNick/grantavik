@@ -1,5 +1,5 @@
 from sqlalchemy import URL, create_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from app.config import settings
 
 
@@ -18,3 +18,4 @@ database_url = URL.create(
 )
 
 engine = create_engine(database_url)
+SessionFactory = sessionmaker(bind=engine)
