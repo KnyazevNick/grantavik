@@ -1,6 +1,6 @@
 from sqlalchemy import URL, create_engine
 from sqlalchemy.orm import DeclarativeBase
-import os
+from app.config import settings
 
 
 
@@ -10,11 +10,11 @@ class Base(DeclarativeBase):
 
 database_url = URL.create(
     "postgresql+psycopg",
-    username="grantavik_app",
-    password=os.environ["GRANTAVIK_DB_PASSWORD"],
-    host="localhost",
-    port=5432,
-    database="grantavik_db",
+    username=settings.db_user,
+    password=settings.db_password,
+    host=settings.db_host,
+    port=settings.db_port,
+    database=settings.db_name,
 )
 
 engine = create_engine(database_url)
