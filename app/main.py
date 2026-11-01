@@ -21,6 +21,7 @@ def find_user_by_id(id: int):
     result = get_user_by_id(id)
     if result is None:
         raise HTTPException(status_code=404, detail="user not found")
+    return result
 
 
 @grantavik.post('/register')
