@@ -32,3 +32,14 @@ def get_user_by_id(user_id: int) -> UserRead | None:
             return None
 
         return UserRead.model_validate(user)
+
+
+def get_user_by_username(username: str) -> UserRead | None:
+    """search user by username, return UserRead if found or None"""
+    with SessionFactory() as session:
+        statement = select(User).where(User.username == username)
+        user = session.scalar(statement)
+        if user is None:
+            return None
+
+        return UserRead.model_validate(user)
