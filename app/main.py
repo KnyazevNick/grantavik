@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 
-from app.check_users import get_user_by_id
+from app.check_users import get_user_by_id, get_user_by_username
 
 from app.users.schemas import UserRead, UserCreate
 from app.users.services import create_user
@@ -19,6 +19,14 @@ def health():
 @grantavik.get('/user/getuserbyid')
 def find_user_by_id(id: int):
     result = get_user_by_id(id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="user not found")
+    return result
+
+
+@grantavik.get('/user/getuserbyusername')
+def find_user_by_username(username: str):
+    result = get_user_by_username(username)
     if result is None:
         raise HTTPException(status_code=404, detail="user not found")
     return result
