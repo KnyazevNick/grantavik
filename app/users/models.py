@@ -8,6 +8,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
     username: Mapped[str] = mapped_column(
         String,
         unique=True,
@@ -16,5 +17,17 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(
         String,
         unique=False,
+        nullable=False,
+    )
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    name: Mapped[str] = mapped_column(
+        String,
+        unique=True,
         nullable=False,
     )
