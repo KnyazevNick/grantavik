@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from fastapi import HTTPException
@@ -40,3 +41,25 @@ def create_user(user: UserCreate) -> UserRead:
             raise
 
         return UserRead.model_validate(new_user)
+
+
+def get_user_by_id(user_id: int) -> UserRead | None:
+    """search user by id, return UserRead if found or None"""
+    with SessionFactory() as session:
+        statement = select(User).where(User.id == user_id)
+        user = session.scalar(statement)
+        if user is None:
+            return None
+
+        return UserRead.model_validate(user)
+
+
+def get_user_by_username(username: str) -> UserRead | None:
+    """search user by username, return UserRead if found or None"""
+    with SessionFactory() as session:
+        statement = select(User).where(User.username == username)
+        user = session.scalar(statement)
+        if user is None:
+            return None
+
+        return UserRead.model_validate(user)
