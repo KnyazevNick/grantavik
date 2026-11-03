@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from app.users.schemas import UserCreate, UserRead
 from app.users.passwords import hash_password
 
-from app.users.models import User
+from app.users.models import User, Role, UserRole
 
 from app.db import SessionFactory
 
@@ -63,3 +63,14 @@ def get_user_by_username(username: str) -> UserRead | None:
             return None
 
         return UserRead.model_validate(user)
+
+
+def get_user_role_names(user_id: int) -> list[str]:
+    """Return user roles."""
+    with SessionFactory() as session:
+        statement = (
+            select(Role.name)
+            .join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+        )
+        return session.scalars(statement).all()
