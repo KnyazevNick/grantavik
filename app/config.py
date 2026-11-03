@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     db_user: str = "grantavik_app"
     db_password: str
 
+    bootstrap_secret = str | None = None
+    
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
