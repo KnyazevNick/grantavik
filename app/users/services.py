@@ -142,13 +142,13 @@ def add_user_role(session: Session, user_id: int, role_id: int) -> None:
     session.add(new_role)
 
 
-def check_user(check_user: UserCreate) -> UserRead | None:
+def check_user(credentials: UserCreate) -> UserRead | None:
     with SessionFactory() as session:
-        statement = select(User).where(User.username == check_user.username)
+        statement = select(User).where(User.username == credentials.username)
         user = session.scalar(statement)
         if user is None:
             return None
-        verify = verify_password(check_user.password, user.password_hash)
+        verify = verify_password(credentials.password, user.password_hash)
         if verify is False:
             return None
 
