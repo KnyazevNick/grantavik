@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from pydantic import Field
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -14,8 +14,8 @@ class Settings(BaseSettings):
 
     bootstrap_secret: str | None = None
 
-    jwt_secret: str
-    access_token_minutes: int = 60
+    jwt_secret: str = Field(min_length=32)
+    access_token_minutes: int = Field(default=60, gt=0)
 
 
     model_config = SettingsConfigDict(
