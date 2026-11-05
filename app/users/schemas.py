@@ -21,4 +21,4 @@ class UserRead(BaseModel):
 
 class TokenRead(BaseModel):
     access_token: str
-    token_type = "bearer"
+    token_type: str = "bearer"
