@@ -14,6 +14,10 @@ class Settings(BaseSettings):
 
     bootstrap_secret: str | None = None
 
+    jwt_secret: str
+    access_token_minutes: int = 60
+
+
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
