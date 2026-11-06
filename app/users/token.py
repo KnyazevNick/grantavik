@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import jwt
+from jwt.exceptions import InvalidTokenError
 
 from app.config import settings
 
@@ -13,3 +14,21 @@ def create_access_token(user_id: int) -> str:
         "exp": expires_at,
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+
+
+def decode_access_token(token: str) -> int | None:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=["HS256"],
+            options={"require": ["sub", "exp"]},
+        )
+    except InvalidTokenError:
+        return None
+    
+    else:
+        try:
+            return int(payload["sub"])
+        except ValueError:
+            return None
