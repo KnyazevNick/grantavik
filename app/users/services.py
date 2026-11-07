@@ -15,6 +15,11 @@ from app.config import settings
 
 
 
+class UsernameAlreadyTakenError(Exception):
+    pass
+
+
+
 def create_user(user: UserCreate) -> UserRead:
     """Create user in the database."""
     with SessionFactory() as session:
@@ -171,3 +176,43 @@ def can_create_user_with_role(creator_roles: list[str], requested_role: str) -> 
         if role in allowed_creator_roles:
             return True
     return False
+
+
+def create_user_with_role(
+    username: str,
+    password: str,
+    role_name: str,
+    ) -> UserRead:
+    password_hash = hash_password(password)
+
+    with SessionFactory() as session:
+        statement = select(Role).where(Role.name == role_name)
+        role = session.scalar(statement)
+        if role is None:
+            raise ValueError("failed to find role")
+
+        new_user = User(
+            username=username,
+            password_hash=password_hash,
+        )
+        session.add(new_user)
+        try:
+            session.flush()
+            add_user_role(session, new_user.id, role.id)
+            user = UserRead.model_validate(new_user)
+            session.commit()
+        except IntegrityError as error:
+            session.rollback()
+
+            sqlstate = getattr(error.orig, "sqlstate", None)
+            diagnostic = getattr(error.orig, "diag", None)
+            constraint_name = getattr(diagnostic, "constraint_name", None)
+
+            if sqlstate == "23505" and constraint_name == "users_username_key":
+                raise UsernameAlreadyTakenError(
+                    "Username is already taken",
+                ) from error
+
+            raise
+
+        return user
