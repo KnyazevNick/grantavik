@@ -153,3 +153,21 @@ def check_user(credentials: UserCreate) -> UserRead | None:
             return None
 
         return UserRead.model_validate(user)
+
+
+def can_create_user_with_role(creator_roles: list[str], requested_role: str) -> bool:
+    #role and who can create user with this role
+    rules = {
+        "employee": ["it_admin", "global_head"],
+        "manager": ["it_admin", "global_head"],
+        "resource_owner": ["it_admin", "global_head"],
+        "it_admin": ["global_head"],
+        "global_head": [],
+    }
+
+    allowed_creator_roles = rules.get(requested_role, [])
+
+    for role in creator_roles:
+        if role in allowed_creator_roles:
+            return True
+    return False
