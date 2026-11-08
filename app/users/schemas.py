@@ -3,7 +3,7 @@ from typing import Annotated
 
 
 
-class UserCreate(BaseModel):
+class UserLogin(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     username: str = Field(min_length=3)
     password: Annotated[
@@ -11,6 +11,25 @@ class UserCreate(BaseModel):
         StringConstraints(strip_whitespace=False),
 
     ] = Field(min_length=3)
+
+
+class UserCreated(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    id: int
+    username: str = Field(min_length=3)
+    temporary_password: Annotated[
+        str,
+        StringConstraints(strip_whitespace=False),
+
+    ] = Field(min_length=3)
+    
+
+
+class CreateUserRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    username: str = Field(min_length=3)
+    role_name: str
+
 
 
 class UserRead(BaseModel):
