@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from secrets import compare_digest
 
-from app.users.schemas import UserCreate, UserRead
+from app.users.schemas import UserLogin, UserRead
 from app.users.passwords import hash_password, verify_password
 from app.users.models import User, Role, UserRole
 
@@ -20,38 +20,7 @@ class UsernameAlreadyTakenError(Exception):
 
 
 
-def create_user(user: UserCreate) -> UserRead:
-    """Create user in the database."""
-    with SessionFactory() as session:
-        password_hash = hash_password(user.password)
-
-        new_user = User(
-            username=user.username,
-            password_hash=password_hash,
-        )
-        session.add(new_user)
-
-        try:
-            session.commit()
-        except IntegrityError as error:
-            session.rollback()
-
-            sqlstate = getattr(error.orig, "sqlstate", None)
-            diagnostic = getattr(error.orig, "diag", None)
-            constraint_name = getattr(diagnostic, "constraint_name", None)
-
-            if sqlstate == "23505" and constraint_name == "users_username_key":
-                raise HTTPException(
-                    status_code=409,
-                    detail="username is already taken",
-                )
-
-            raise
-
-        return UserRead.model_validate(new_user)
-
-
-def create_globalhead(user: UserCreate, secret: str) -> UserRead:
+def create_globalhead(user: UserLogin, secret: str) -> UserRead:
     if not settings.bootstrap_secret:
         raise ValueError("Bootstrap authorization failed")
     
@@ -147,7 +116,7 @@ def add_user_role(session: Session, user_id: int, role_id: int) -> None:
     session.add(new_role)
 
 
-def check_user(credentials: UserCreate) -> UserRead | None:
+def check_user(credentials: UserLogin) -> UserRead | None:
     with SessionFactory() as session:
         statement = select(User).where(User.username == credentials.username)
         user = session.scalar(statement)
