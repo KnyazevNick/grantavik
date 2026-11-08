@@ -128,8 +128,10 @@ def check_user(credentials: UserLogin) -> UserRead | None:
         if verify is False:
             return None
         
-        date = user.temporary_password_expires_at
-        if date is not None:
+        expires_at = user.temporary_password_expires_at
+        if expires_at <= datetime.now(timezone.utc):
+            return None
+        if expires_at is not None:
             raise PasswordChangeRequiredError
 
         return UserRead.model_validate(user)
