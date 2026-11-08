@@ -1,10 +1,9 @@
+from datetime import datetime, timedelta
+from secrets import compare_digest
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
-from fastapi import HTTPException
-
-from secrets import compare_digest
 
 from app.users.schemas import UserLogin, UserRead
 from app.users.passwords import hash_password, verify_password
