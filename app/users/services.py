@@ -1,12 +1,11 @@
+from datetime import datetime, timezone, timedelta
+from secrets import compare_digest
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from fastapi import HTTPException
-
-from secrets import compare_digest
-
-from app.users.schemas import UserCreate, UserRead
+from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest
 from app.users.passwords import hash_password, verify_password
 from app.users.models import User, Role, UserRole
 
@@ -15,38 +14,20 @@ from app.config import settings
 
 
 
-def create_user(user: UserCreate) -> UserRead:
-    """Create user in the database."""
-    with SessionFactory() as session:
-        password_hash = hash_password(user.password)
+class UsernameAlreadyTakenError(Exception):
+    pass
 
-        new_user = User(
-            username=user.username,
-            password_hash=password_hash,
-        )
-        session.add(new_user)
+class PasswordChangeRequiredError(Exception):
+    pass
 
-        try:
-            session.commit()
-        except IntegrityError as error:
-            session.rollback()
+class TemporaryPasswordExpired(Exception):
+    pass
 
-            sqlstate = getattr(error.orig, "sqlstate", None)
-            diagnostic = getattr(error.orig, "diag", None)
-            constraint_name = getattr(diagnostic, "constraint_name", None)
-
-            if sqlstate == "23505" and constraint_name == "users_username_key":
-                raise HTTPException(
-                    status_code=409,
-                    detail="username is already taken",
-                )
-
-            raise
-
-        return UserRead.model_validate(new_user)
+class TemporaryAndNewPasswordsAreSame(Exception):
+    pass
 
 
-def create_globalhead(user: UserCreate, secret: str) -> UserRead:
+def create_globalhead(user: UserLogin, secret: str) -> UserRead:
     if not settings.bootstrap_secret:
         raise ValueError("Bootstrap authorization failed")
     
@@ -142,7 +123,7 @@ def add_user_role(session: Session, user_id: int, role_id: int) -> None:
     session.add(new_role)
 
 
-def check_user(credentials: UserCreate) -> UserRead | None:
+def check_user(credentials: UserLogin) -> UserRead | None:
     with SessionFactory() as session:
         statement = select(User).where(User.username == credentials.username)
         user = session.scalar(statement)
@@ -151,6 +132,12 @@ def check_user(credentials: UserCreate) -> UserRead | None:
         verify = verify_password(credentials.password, user.password_hash)
         if verify is False:
             return None
+        
+        expires_at = user.temporary_password_expires_at
+        if expires_at is not None and expires_at <= datetime.now(timezone.utc):
+            return None
+        if expires_at is not None:
+            raise PasswordChangeRequiredError
 
         return UserRead.model_validate(user)
 
@@ -171,3 +158,75 @@ def can_create_user_with_role(creator_roles: list[str], requested_role: str) -> 
         if role in allowed_creator_roles:
             return True
     return False
+
+
+def create_user_with_role(
+    username: str,
+    password: str,
+    role_name: str,
+    ) -> UserRead:
+    password_hash = hash_password(password)
+
+    with SessionFactory() as session:
+        statement = select(Role).where(Role.name == role_name)
+        role = session.scalar(statement)
+        if role is None:
+            raise ValueError("failed to find role")
+
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+        new_user = User(
+            username=username,
+            password_hash=password_hash,
+            temporary_password_expires_at=expires_at,
+        )
+        session.add(new_user)
+        try:
+            session.flush()
+            add_user_role(session, new_user.id, role.id)
+            user = UserRead.model_validate(new_user)
+            session.commit()
+        except IntegrityError as error:
+            session.rollback()
+
+            sqlstate = getattr(error.orig, "sqlstate", None)
+            diagnostic = getattr(error.orig, "diag", None)
+            constraint_name = getattr(diagnostic, "constraint_name", None)
+
+            if sqlstate == "23505" and constraint_name == "users_username_key":
+                raise UsernameAlreadyTakenError(
+                    "Username is already taken",
+                ) from error
+
+            raise
+
+        return user
+
+
+def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
+    with SessionFactory() as session:
+        statement = (
+            select(User)
+            .where(User.username == data.username)
+            .with_for_update()
+        )
+        user = session.scalar(statement)
+        
+        if user is None or user.temporary_password_expires_at is None:
+            return False
+
+        if not verify_password(data.temporary_password, user.password_hash):
+            return False
+        
+        now = datetime.now(timezone.utc)
+        if user.temporary_password_expires_at <= now:
+            raise TemporaryPasswordExpired
+
+        if data.temporary_password == data.new_password:
+            raise TemporaryAndNewPasswordsAreSame
+
+
+        user.password_hash = hash_password(data.new_password)
+        user.temporary_password_expires_at = None
+
+        session.commit()
+        return True

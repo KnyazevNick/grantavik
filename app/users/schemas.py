@@ -3,14 +3,31 @@ from typing import Annotated
 
 
 
-class UserCreate(BaseModel):
+class UserLogin(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     username: str = Field(min_length=3)
     password: Annotated[
         str,
         StringConstraints(strip_whitespace=False),
-
     ] = Field(min_length=3)
+
+
+class UserCreated(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    id: int
+    username: str = Field(min_length=3)
+    temporary_password: Annotated[
+        str,
+        StringConstraints(strip_whitespace=False),
+    ] = Field(min_length=3)
+    
+
+
+class CreateUserRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    username: str = Field(min_length=3)
+    role_name: str
+
 
 
 class UserRead(BaseModel):
@@ -22,3 +39,19 @@ class UserRead(BaseModel):
 class TokenRead(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class ChangeTemporaryPasswordRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    username: str = Field(min_length=3)
+
+    temporary_password: Annotated[
+        str,
+        StringConstraints(strip_whitespace=False),
+    ] = Field(min_length=3)
+
+    new_password: Annotated[
+        str,
+        StringConstraints(strip_whitespace=False),
+    ] = Field(min_length=3)
