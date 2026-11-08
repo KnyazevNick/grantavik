@@ -195,3 +195,7 @@ def create_user_with_role(
             raise
 
         return user
+
+
+def change_temporary_password():
+    pass

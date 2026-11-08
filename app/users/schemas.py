@@ -9,7 +9,6 @@ class UserLogin(BaseModel):
     password: Annotated[
         str,
         StringConstraints(strip_whitespace=False),
-
     ] = Field(min_length=3)
 
 
@@ -20,7 +19,6 @@ class UserCreated(BaseModel):
     temporary_password: Annotated[
         str,
         StringConstraints(strip_whitespace=False),
-
     ] = Field(min_length=3)
     
 
@@ -41,3 +39,19 @@ class UserRead(BaseModel):
 class TokenRead(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class ChangeTemporaryPasswordRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    username: str = Field(min_length=3)
+
+    temporary_password: Annotated[
+        str,
+        StringConstraints(strip_whitespace=False),
+    ] = Field(min_length=3)
+
+    new_password: Annotated[
+        str,
+        StringConstraints(strip_whitespace=False),
+    ] = Field(min_length=3)
