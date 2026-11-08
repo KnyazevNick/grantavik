@@ -128,11 +128,7 @@ def check_user(credentials: UserLogin) -> UserRead | None:
         if verify is False:
             return None
         
-        statement = (
-            select(User.temporary_password_expires_at)
-            .where(User.id == user.id)
-        )
-        date = session.scalar(statement)
+        date = user.temporary_password_expires_at
         if date is not None:
             raise PasswordChangeRequiredError
 
