@@ -129,7 +129,7 @@ def check_user(credentials: UserLogin) -> UserRead | None:
             return None
         
         expires_at = user.temporary_password_expires_at
-        if expires_at <= datetime.now(timezone.utc):
+        if expires_at is not None and expires_at <= datetime.now(timezone.utc):
             return None
         if expires_at is not None:
             raise PasswordChangeRequiredError
