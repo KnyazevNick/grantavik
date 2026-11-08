@@ -4,7 +4,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import secrets
 
 from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreated, TokenRead
-from app.users.services import UsernameAlreadyTakenError, check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role
+from app.users.services import check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role
+from app.users.services import UsernameAlreadyTakenError, PasswordChangeRequiredError
 from app.users.token import create_access_token, decode_access_token
 
 
@@ -102,7 +103,12 @@ def create_user_db(
 
 @grantavik.post('/auth/login')
 def login(user: UserLogin) -> TokenRead:
-    checked_user = check_user(user)
+    try:
+        checked_user = check_user(user)
+    except PasswordChangeRequiredError:
+        raise HTTPException(status_code=403, detail="password change required")
+    
     if checked_user is None:
         raise HTTPException(status_code=401, detail="invalid username or password")
+    
     return TokenRead(access_token=create_access_token(checked_user.id))
