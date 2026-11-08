@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.users.schemas import UserLogin, UserRead
+from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest
 from app.users.passwords import hash_password, verify_password
 from app.users.models import User, Role, UserRole
 
@@ -20,6 +20,11 @@ class UsernameAlreadyTakenError(Exception):
 class PasswordChangeRequiredError(Exception):
     pass
 
+class TemporaryPasswordExpired(Exception):
+    pass
+
+class TemporaryAndNewPasswordsAreSame(Exception):
+    pass
 
 
 def create_globalhead(user: UserLogin, secret: str) -> UserRead:
@@ -197,5 +202,31 @@ def create_user_with_role(
         return user
 
 
-def change_temporary_password():
-    pass
+def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
+    with SessionFactory() as session:
+        statement = (
+            select(User)
+            .where(User.username == data.username)
+            .with_for_update()
+        )
+        user = session.scalar(statement)
+        
+        if user is None or user.temporary_password_expires_at is None:
+            return False
+
+        if not verify_password(data.temporary_password, user.password_hash):
+            return False
+        
+        now = datetime.now(timezone.utc)
+        if user.temporary_password_expires_at <= now:
+            raise TemporaryPasswordExpired
+
+        if data.temporary_password == data.new_password:
+            raise TemporaryAndNewPasswordsAreSame
+
+
+        user.password_hash = hash_password(data.new_password)
+        user.temporary_password_expires_at = None
+
+        session.commit()
+        return True
