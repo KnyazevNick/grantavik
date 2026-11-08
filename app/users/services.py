@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from secrets import compare_digest
 
 from sqlalchemy import select
@@ -159,9 +159,11 @@ def create_user_with_role(
         if role is None:
             raise ValueError("failed to find role")
 
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
         new_user = User(
             username=username,
             password_hash=password_hash,
+            temporary_password_expires_at=expires_at,
         )
         session.add(new_user)
         try:
