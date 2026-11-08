@@ -17,6 +17,9 @@ from app.config import settings
 class UsernameAlreadyTakenError(Exception):
     pass
 
+class PasswordChangeRequiredError(Exception):
+    pass
+
 
 
 def create_globalhead(user: UserLogin, secret: str) -> UserRead:
@@ -124,6 +127,14 @@ def check_user(credentials: UserLogin) -> UserRead | None:
         verify = verify_password(credentials.password, user.password_hash)
         if verify is False:
             return None
+        
+        statement = (
+            select(User.temporary_password_expires_at)
+            .where(User.id == user.id)
+        )
+        date = session.scalar(statement)
+        if date is not None:
+            raise PasswordChangeRequiredError
 
         return UserRead.model_validate(user)
 
