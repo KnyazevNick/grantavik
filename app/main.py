@@ -83,10 +83,10 @@ def create_user_db(
     temporary_password = secrets.token_urlsafe(12)
     try:
         created_user = create_user_with_role(
-            user.username,
-            temporary_password,
-            user.role_name,
-            )
+            username=user.username,
+            password=temporary_password,
+            role_name=user.role_name,
+        )
     except UsernameAlreadyTakenError as error:
         raise HTTPException(
             status_code=409,
