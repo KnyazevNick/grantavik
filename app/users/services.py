@@ -123,6 +123,16 @@ def add_user_role(session: Session, user_id: int, role_id: int) -> None:
     session.add(new_role)
 
 
+def get_role_by_name(role_name: str) -> RoleRead | None:
+    with SessionFactory() as session:
+        statement = (
+            select(Role)
+            .where(Role.name == role_name)
+        )
+        role = session.scalar(statement)
+        return role
+
+
 def check_user(credentials: UserLogin) -> UserRead | None:
     with SessionFactory() as session:
         statement = select(User).where(User.username == credentials.username)
