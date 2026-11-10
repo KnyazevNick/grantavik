@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest
+from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest, RoleRead
 from app.users.passwords import hash_password, verify_password
 from app.users.models import User, Role, UserRole
 
@@ -121,6 +121,16 @@ def add_user_role(session: Session, user_id: int, role_id: int) -> None:
         role_id=role_id,
     )
     session.add(new_role)
+
+
+def assign_role(user_id: int, role_id: int) -> None:
+    """CREATES SESSION and assign role to user"""
+    with SessionFactory() as session:
+        new_role = UserRole(
+            user_id=user_id,
+            role_id=role_id,
+        )
+        session.add(new_role)
 
 
 def get_role_by_name(role_name: str) -> RoleRead | None:
