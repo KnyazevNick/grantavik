@@ -3,9 +3,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 import secrets
 
-from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreated, TokenRead
-from app.users.services import check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role
-from app.users.services import UsernameAlreadyTakenError, PasswordChangeRequiredError
+from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreated, TokenRead, ChangeTemporaryPasswordRequest
+from app.users.services import check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role, change_temporary_password
+from app.users.services import UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame, TemporaryPasswordExpired
 from app.users.token import create_access_token, decode_access_token
 
 
@@ -112,3 +112,16 @@ def login(user: UserLogin) -> TokenRead:
         raise HTTPException(status_code=401, detail="invalid username or password")
     
     return TokenRead(access_token=create_access_token(checked_user.id))
+
+
+@grantavik.post('/auth/change-temporary-password', status_code=204)
+def auth_change_temp_pass(data: ChangeTemporaryPasswordRequest) -> None:
+    try:
+        change = change_temporary_password(data)
+    except TemporaryAndNewPasswordsAreSame:
+        raise HTTPException(status_code=400, detail="New password must differ from temporary password")
+    except TemporaryPasswordExpired:
+        raise HTTPException(status_code=401)
+    else:
+        if change is False:
+            raise HTTPException(status_code=401)
