@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest
+from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest, RoleRead
 from app.users.passwords import hash_password, verify_password
 from app.users.models import User, Role, UserRole
 
@@ -24,6 +24,9 @@ class TemporaryPasswordExpired(Exception):
     pass
 
 class TemporaryAndNewPasswordsAreSame(Exception):
+    pass
+
+class RoleAlreadyAssignedError(Exception):
     pass
 
 
@@ -65,7 +68,7 @@ def create_globalhead(user: UserLogin, secret: str) -> UserRead:
 
         try:
             session.flush()
-            add_user_role(session, new_globalhead.id, role.id)
+            add_user_role_in_session(session, new_globalhead.id, role.id)
             session.commit()
         except IntegrityError as error:
             session.rollback()
@@ -115,12 +118,39 @@ def get_user_role_names(user_id: int) -> list[str]:
         return session.scalars(statement).all()
 
 
-def add_user_role(session: Session, user_id: int, role_id: int) -> None:
+def add_user_role_in_session(session: Session, user_id: int, role_id: int) -> None:
     new_role = UserRole(
         user_id=user_id,
         role_id=role_id,
     )
     session.add(new_role)
+
+
+def assign_role(user_id: int, role_id: int) -> None:
+    """CREATES SESSION and assign role to user"""
+    with SessionFactory() as session:
+        try:
+            add_user_role_in_session(session, user_id, role_id)
+            session.commit()
+        except IntegrityError as error:
+            session.rollback()
+            sqlstate = getattr(error.orig, "sqlstate", None)
+            diagnostic = getattr(error.orig, "diag", None)
+            constraint_name = getattr(diagnostic, "constraint_name", None)
+            if sqlstate == "23505" and constraint_name == "user_roles_pkey":
+                raise RoleAlreadyAssignedError() from error
+
+            raise
+
+
+def get_role_by_name(role_name: str) -> RoleRead | None:
+    with SessionFactory() as session:
+        statement = (
+            select(Role)
+            .where(Role.name == role_name)
+        )
+        role = session.scalar(statement)
+        return role
 
 
 def check_user(credentials: UserLogin) -> UserRead | None:
@@ -182,7 +212,7 @@ def create_user_with_role(
         session.add(new_user)
         try:
             session.flush()
-            add_user_role(session, new_user.id, role.id)
+            add_user_role_in_session(session, new_user.id, role.id)
             user = UserRead.model_validate(new_user)
             session.commit()
         except IntegrityError as error:
