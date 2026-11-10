@@ -4,8 +4,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import secrets
 
 from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreated, TokenRead, ChangeTemporaryPasswordRequest
-from app.users.services import check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role, change_temporary_password
-from app.users.services import UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame, TemporaryPasswordExpired
+from app.users.services import check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role, change_temporary_password, get_role_by_name, assign_role
+from app.users.services import UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame, TemporaryPasswordExpired, RoleAlreadyAssignedError
 from app.users.token import create_access_token, decode_access_token
 
 
@@ -23,7 +23,7 @@ def health():
 @grantavik.get('/auth/me')
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-    ) -> UserRead:
+) -> UserRead:
     if credentials is None:
         raise HTTPException(
             status_code=401,
@@ -73,7 +73,7 @@ def find_user_by_username(username: str):
 def create_user_db(
     user: CreateUserRequest,
     creator: UserRead = Depends(get_current_user),
-    ) -> UserCreated:
+) -> UserCreated:
     creator_roles = get_user_role_names(creator.id)
     can_create = can_create_user_with_role(creator_roles, user.role_name)
     if not can_create:
@@ -125,3 +125,35 @@ def auth_change_temp_pass(data: ChangeTemporaryPasswordRequest) -> None:
     else:
         if change is False:
             raise HTTPException(status_code=401)
+
+
+@grantavik.post('/users/{username}/roles/add/{new_role}', status_code=204)
+def add_role(username: str,
+            new_role: str,
+            current_user: UserRead = Depends(get_current_user),
+) -> None:
+    current_user_roles = get_user_role_names(current_user.id)
+    can_add_role = can_create_user_with_role(current_user_roles, new_role)
+    if can_add_role is False:
+        raise HTTPException(status_code=403)
+    
+    user = get_user_by_username(username)
+    if user is None:
+        raise HTTPException(status_code=404)
+    
+    user_roles = get_user_role_names(user.id)
+    for user_role in user_roles:
+        if user_role == new_role:
+            raise HTTPException(status_code=409, detail="user already have this role")
+
+    role = get_role_by_name(new_role)
+    if role is None:
+        raise HTTPException(status_code=404)
+
+    try:
+        assign_role(user.id, role.id)
+    except RoleAlreadyAssignedError:
+        raise HTTPException(
+            status_code=409,
+            detail="user already have this role",
+        )
