@@ -20,7 +20,6 @@ class UserCreated(BaseModel):
         str,
         StringConstraints(strip_whitespace=False),
     ] = Field(min_length=3)
-    
 
 
 class CreateUserRequest(BaseModel):
@@ -29,11 +28,16 @@ class CreateUserRequest(BaseModel):
     role_name: str
 
 
-
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     username: str
+
+
+class Role(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
 
 
 class TokenRead(BaseModel):
