@@ -270,4 +270,11 @@ def create_resource(resource_scheme: ResourceCreate) -> int:
         )
     session.add(resource)
     session.commit()
-    return resource.id
+
+
+def can_create_resource(roles: list[str]) -> bool:
+    for role in roles:
+        if role == "it_admin" or "global_head":
+            return True
+
+    return False

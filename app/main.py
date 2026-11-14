@@ -3,8 +3,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 import secrets
 
-from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreated, TokenRead, ChangeTemporaryPasswordRequest
-from app.users.services import check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role, change_temporary_password, get_role_by_name, assign_role
+from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreated, TokenRead, ChangeTemporaryPasswordRequest, ResourceCreate
+from app.users.services import check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role, change_temporary_password, get_role_by_name, assign_role, create_resource, can_create_resource
 from app.users.services import UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame, TemporaryPasswordExpired, RoleAlreadyAssignedError
 from app.users.token import create_access_token, decode_access_token
 
@@ -127,10 +127,11 @@ def auth_change_temp_pass(data: ChangeTemporaryPasswordRequest) -> None:
             raise HTTPException(status_code=401)
 
 
-@grantavik.post('/users/{username}/roles/add/{new_role}', status_code=204)
-def add_role(username: str,
-            new_role: str,
-            current_user: UserRead = Depends(get_current_user),
+@grantavik.post('/users/{username}/roles/assign/{new_role}', status_code=204)
+def add_role_to_user(
+    username: str,
+    new_role: str,
+    current_user: UserRead = Depends(get_current_user),
 ) -> None:
     current_user_roles = get_user_role_names(current_user.id)
     can_add_role = can_create_user_with_role(current_user_roles, new_role)
@@ -157,3 +158,19 @@ def add_role(username: str,
             status_code=409,
             detail="user already have this role",
         )
+
+
+@grantavik.post('/resources', status_code=204)
+def add_resource_to_db(
+    resource_request: ResourceCreate,
+    current_user: UserRead = Depends(get_current_user)
+) -> None:
+    current_user_roles = get_user_role_names(current_user.id)
+    can_create = can_create_resource(current_user_roles)
+    if can_create is False:
+        raise HTTPException(
+            status_code=403,
+            detail="only IT Admin or Global Head can create resources"
+        )
+    
+    create_resource(resource_request)
