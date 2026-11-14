@@ -5,9 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest, RoleRead
+from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest, RoleRead, ResourceCreate
 from app.users.passwords import hash_password, verify_password
-from app.users.models import User, Role, UserRole
+from app.users.models import User, Role, UserRole, Resource
 
 from app.db import SessionFactory
 from app.config import settings
@@ -260,3 +260,14 @@ def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
 
         session.commit()
         return True
+
+
+def create_resource(resource_scheme: ResourceCreate) -> int:
+    with SessionFactory() as session:
+        resource = Resource(
+            name=resource_scheme.resource_name,
+            owner_id=resource_scheme.owner_id,
+        )
+    session.add(resource)
+    session.commit()
+    return resource.id

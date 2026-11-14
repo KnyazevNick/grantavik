@@ -59,3 +59,9 @@ class ChangeTemporaryPasswordRequest(BaseModel):
         str,
         StringConstraints(strip_whitespace=False),
     ] = Field(min_length=3)
+
+
+class ResourceCreate(BaseModel):
+    resource_name: str
+
+    owner_id: int
