@@ -268,13 +268,16 @@ def create_resource(resource_scheme: ResourceCreate) -> None:
             name=resource_scheme.resource_name,
             owner_id=resource_scheme.owner_id,
         )
+        resource_owner_roles = get_user_role_names(resource_scheme.owner_id)
+        if "resource_owner" not in resource_owner_roles:
+            resource_owner_role = get_role_by_name("resource_owner")
+            add_user_role_in_session(session, resource_scheme.owner_id, resource_owner_role.id)
         session.add(resource)
         session.commit()
 
 
 def can_create_resource(roles: list[str]) -> bool:
-    for role in roles:
-        if role == "it_admin" or role == "global_head":
-            return True
+    if "it_admin" in roles or "global_head" in roles:
+        return True
 
     return False
