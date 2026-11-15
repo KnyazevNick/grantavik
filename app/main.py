@@ -5,7 +5,7 @@ import secrets
 
 from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreated, TokenRead, ChangeTemporaryPasswordRequest, ResourceCreate
 from app.users.services import check_user, get_user_by_id, get_user_by_username, get_user_role_names, can_create_user_with_role, create_user_with_role, change_temporary_password, get_role_by_name, assign_role, create_resource, can_create_resource
-from app.users.services import UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame, TemporaryPasswordExpired, RoleAlreadyAssignedError
+from app.users.services import UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame, TemporaryPasswordExpired, RoleAlreadyAssignedError, ResourceAlreadyExists
 from app.users.token import create_access_token, decode_access_token
 
 
@@ -172,5 +172,7 @@ def add_resource_to_db(
             status_code=403,
             detail="only IT Admin or Global Head can create resources"
         )
-    
-    create_resource(resource_request)
+    try:
+        create_resource(resource_request)
+    except ResourceAlreadyExists:
+        raise HTTPException(status_code=409, detail="resource already exists")

@@ -29,6 +29,9 @@ class TemporaryAndNewPasswordsAreSame(Exception):
 class RoleAlreadyAssignedError(Exception):
     pass
 
+class ResourceAlreadyExists(Exception):
+    pass
+
 
 def create_globalhead(user: UserLogin, secret: str) -> UserRead:
     if not settings.bootstrap_secret:
@@ -264,6 +267,11 @@ def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
 
 def create_resource(resource_scheme: ResourceCreate) -> None:
     with SessionFactory() as session:
+        name_check = select(Resource.name).where(Resource.name == resource_scheme.resource_name)
+        check_result = session.scalar(name_check)
+        if check_result is not None:
+            raise ResourceAlreadyExists
+        
         resource = Resource(
             name=resource_scheme.resource_name,
             owner_id=resource_scheme.owner_id,
