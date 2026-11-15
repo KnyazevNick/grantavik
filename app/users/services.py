@@ -262,19 +262,19 @@ def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
         return True
 
 
-def create_resource(resource_scheme: ResourceCreate) -> int:
+def create_resource(resource_scheme: ResourceCreate) -> None:
     with SessionFactory() as session:
         resource = Resource(
             name=resource_scheme.resource_name,
             owner_id=resource_scheme.owner_id,
         )
-    session.add(resource)
-    session.commit()
+        session.add(resource)
+        session.commit()
 
 
 def can_create_resource(roles: list[str]) -> bool:
     for role in roles:
-        if role == "it_admin" or "global_head":
+        if role == "it_admin" or role == "global_head":
             return True
 
     return False
