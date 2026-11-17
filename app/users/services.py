@@ -153,7 +153,7 @@ def get_role_by_name(role_name: str) -> RoleRead | None:
             .where(Role.name == role_name)
         )
         role = session.scalar(statement)
-        return role
+        return RoleRead.model_validate(role)
 
 
 def check_user(credentials: UserLogin) -> UserRead | None:
