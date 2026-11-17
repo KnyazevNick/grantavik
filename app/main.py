@@ -166,10 +166,7 @@ def add_role_to_user(
             detail="user already have this role",
         )
 @grantavik.get('/resources')
-def show_all_resources(current_user: UserRead = Depends(get_current_user)):
-    if current_user is None:
-        raise HTTPException(status_code=403, detail="You need to be logged in to get resources")
-    
+def show_all_resources(current_user: UserRead = Depends(get_current_user)) -> list: 
     return get_resources()
 
 
