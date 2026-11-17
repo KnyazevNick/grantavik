@@ -7,7 +7,7 @@ from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreate
 from app.users.services import (check_user, get_user_by_id, get_user_by_username, get_user_role_names,
                                 can_create_user_with_role, create_user_with_role,
                                 change_temporary_password, get_role_by_name, assign_role,
-                                create_resource, can_create_resource,
+                                create_resource, can_create_resource, get_resources,
                                 )
 from app.users.services import (UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame,
                                 TemporaryPasswordExpired, RoleAlreadyAssignedError, ResourceAlreadyExists,
@@ -165,6 +165,12 @@ def add_role_to_user(
             status_code=409,
             detail="user already have this role",
         )
+@grantavik.get('/resources')
+def show_all_resources(current_user: UserRead = Depends(get_current_user)):
+    if current_user is None:
+        raise HTTPException(status_code=403, detail="You need to be logged in to get resources")
+    
+    return get_resources()
 
 
 @grantavik.post('/resources', status_code=204)

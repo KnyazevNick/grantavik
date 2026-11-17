@@ -296,3 +296,10 @@ def can_create_resource(roles: list[str]) -> bool:
         return True
 
     return False
+
+
+def get_resources():
+    with SessionFactory() as session:
+        statement = select(Resource).order_by(Resource.id)
+        resources = session.scalars(statement)
+        return resources
