@@ -67,3 +67,29 @@ class Resource(Base):
         ForeignKey("users.id"),
         nullable=False,
     )
+
+
+class AccessRequest(Base):
+    __tablename__ = "access_requests"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+
+    resource_id: Mapped[int] = mapped_column(
+        ForeignKey("resources.id")
+    )
+
+    reason: Mapped[str] = mapped_column()
+
+    duration_days: Mapped[int] = mapped_column()
+
+    status: Mapped[str] = mapped_column()
+
+    requester_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id")
+    )
+
+    recipient_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id")
+    )
