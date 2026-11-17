@@ -5,9 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest, RoleRead
+from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest, RoleRead, ResourceCreate
 from app.users.passwords import hash_password, verify_password
-from app.users.models import User, Role, UserRole
+from app.users.models import User, Role, UserRole, Resource
 
 from app.db import SessionFactory
 from app.config import settings
@@ -27,6 +27,12 @@ class TemporaryAndNewPasswordsAreSame(Exception):
     pass
 
 class RoleAlreadyAssignedError(Exception):
+    pass
+
+class ResourceAlreadyExists(Exception):
+    pass
+
+class IncorrectUserID(Exception):
     pass
 
 
@@ -150,7 +156,7 @@ def get_role_by_name(role_name: str) -> RoleRead | None:
             .where(Role.name == role_name)
         )
         role = session.scalar(statement)
-        return role
+        return RoleRead.model_validate(role)
 
 
 def check_user(credentials: UserLogin) -> UserRead | None:
@@ -260,3 +266,40 @@ def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
 
         session.commit()
         return True
+
+
+def create_resource(resource_scheme: ResourceCreate) -> None:
+    with SessionFactory() as session:
+        owner = get_user_by_id(resource_scheme.owner_id)
+        if owner is None:
+            raise IncorrectUserID
+        
+        name_check = select(Resource.name).where(Resource.name == resource_scheme.resource_name)
+        check_result = session.scalar(name_check)
+        if check_result is not None:
+            raise ResourceAlreadyExists
+        
+        resource = Resource(
+            name=resource_scheme.resource_name,
+            owner_id=resource_scheme.owner_id,
+        )
+        resource_owner_roles = get_user_role_names(resource_scheme.owner_id)
+        if "resource_owner" not in resource_owner_roles:
+            resource_owner_role = get_role_by_name("resource_owner")
+            add_user_role_in_session(session, resource_scheme.owner_id, resource_owner_role.id)
+        session.add(resource)
+        session.commit()
+
+
+def can_create_resource(roles: list[str]) -> bool:
+    if "it_admin" in roles or "global_head" in roles:
+        return True
+
+    return False
+
+
+def get_resources() -> list:
+    with SessionFactory() as session:
+        statement = select(Resource).order_by(Resource.id)
+        resources = session.scalars(statement).all()
+        return resources
