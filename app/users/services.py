@@ -32,6 +32,9 @@ class RoleAlreadyAssignedError(Exception):
 class ResourceAlreadyExists(Exception):
     pass
 
+class IncorrectUserID(Exception):
+    pass
+
 
 def create_globalhead(user: UserLogin, secret: str) -> UserRead:
     if not settings.bootstrap_secret:
@@ -267,6 +270,10 @@ def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
 
 def create_resource(resource_scheme: ResourceCreate) -> None:
     with SessionFactory() as session:
+        owner = get_user_by_id(resource_scheme.owner_id)
+        if owner is None:
+            raise IncorrectUserID
+        
         name_check = select(Resource.name).where(Resource.name == resource_scheme.resource_name)
         check_result = session.scalar(name_check)
         if check_result is not None:
