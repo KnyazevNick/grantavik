@@ -65,3 +65,13 @@ class ResourceCreate(BaseModel):
     resource_name: str
 
     owner_id: int
+
+
+class AccessRequestCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    resource_id: int
+
+    reason: str = Field(min_length=10)
+
+    duration_days: int = Field(default=90, gt=0)
