@@ -9,9 +9,9 @@ from app.users.services import (check_user, get_user_by_id, get_user_by_username
                                 change_temporary_password, get_role_by_name, assign_role,
                                 create_resource, can_create_resource, get_resources,
                                 )
-from app.users.services import (UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame,
-                                TemporaryPasswordExpired, RoleAlreadyAssignedError, ResourceAlreadyExists,
-                                IncorrectUserID
+from app.users.services import (UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSameError,
+                                TemporaryPasswordExpiredError, RoleAlreadyAssignedError, ResourceAlreadyExistsError,
+                                IncorrectUserIDError
                                 )
 from app.users.token import create_access_token, decode_access_token
 
@@ -125,9 +125,9 @@ def login(user: UserLogin) -> TokenRead:
 def auth_change_temp_pass(data: ChangeTemporaryPasswordRequest) -> None:
     try:
         change = change_temporary_password(data)
-    except TemporaryAndNewPasswordsAreSame:
+    except TemporaryAndNewPasswordsAreSameError:
         raise HTTPException(status_code=400, detail="New password must differ from temporary password")
-    except TemporaryPasswordExpired:
+    except TemporaryPasswordExpiredError:
         raise HTTPException(status_code=401)
     else:
         if change is False:
@@ -184,7 +184,7 @@ def add_resource_to_db(
         )
     try:
         create_resource(resource_request)
-    except ResourceAlreadyExists:
+    except ResourceAlreadyExistsError:
         raise HTTPException(status_code=409, detail="resource already exists")
-    except IncorrectUserID:
+    except IncorrectUserIDError:
         raise HTTPException(status_code=404, detail="resource owner has incorrect ID")

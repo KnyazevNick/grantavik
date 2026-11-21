@@ -20,19 +20,19 @@ class UsernameAlreadyTakenError(Exception):
 class PasswordChangeRequiredError(Exception):
     pass
 
-class TemporaryPasswordExpired(Exception):
+class TemporaryPasswordExpiredError(Exception):
     pass
 
-class TemporaryAndNewPasswordsAreSame(Exception):
+class TemporaryAndNewPasswordsAreSameError(Exception):
     pass
 
 class RoleAlreadyAssignedError(Exception):
     pass
 
-class ResourceAlreadyExists(Exception):
+class ResourceAlreadyExistsError(Exception):
     pass
 
-class IncorrectUserID(Exception):
+class IncorrectUserIDError(Exception):
     pass
 
 
@@ -255,10 +255,10 @@ def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
         
         now = datetime.now(timezone.utc)
         if user.temporary_password_expires_at <= now:
-            raise TemporaryPasswordExpired
+            raise TemporaryPasswordExpiredError
 
         if data.temporary_password == data.new_password:
-            raise TemporaryAndNewPasswordsAreSame
+            raise TemporaryAndNewPasswordsAreSameError
 
 
         user.password_hash = hash_password(data.new_password)
@@ -272,12 +272,12 @@ def create_resource(resource_scheme: ResourceCreate) -> None:
     with SessionFactory() as session:
         owner = get_user_by_id(resource_scheme.owner_id)
         if owner is None:
-            raise IncorrectUserID
+            raise IncorrectUserIDError
         
         name_check = select(Resource.name).where(Resource.name == resource_scheme.resource_name)
         check_result = session.scalar(name_check)
         if check_result is not None:
-            raise ResourceAlreadyExists
+            raise ResourceAlreadyExistsError
         
         resource = Resource(
             name=resource_scheme.resource_name,
