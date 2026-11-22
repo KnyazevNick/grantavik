@@ -43,6 +43,11 @@ class ResourceNotFoundError(Exception):
     pass
 
 
+
+status_1 = "pending_manager"
+status_2 = "pending_resource_owner"
+status_3 = "pending_it_admin"
+status_4 = "access_granted!"
 def create_globalhead(user: UserLogin, secret: str) -> UserRead:
     if not settings.bootstrap_secret:
         raise ValueError("Bootstrap authorization failed")
@@ -324,14 +329,27 @@ def create_request_for_myself(request: AccessRequestCreate, creator_id: int) -> 
         raise ResourceNotFoundError
     
     with SessionFactory() as session:
+        #if not manager:
         access_request = AccessRequest(
             resource_id=request.resource_id,
             reason=request.reason,
             duration_days=request.duration_days,
-            status="pending_manager",
+            status=status_1,
             requester_id=creator_id,
             recipient_id=creator_id,
         )
+        #if manager:
+        user_roles = get_user_role_names(creator_id)
+        if "manager" in user_roles:
+            access_request = AccessRequest(
+                resource_id=request.resource_id,
+                reason=request.reason,
+                duration_days=request.duration_days,
+                status=status_2,
+                requester_id=creator_id,
+                recipient_id=creator_id,
+            )
+        
         session.add(access_request)
         session.commit()
         return access_request.id
