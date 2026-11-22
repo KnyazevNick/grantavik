@@ -335,3 +335,14 @@ def create_request_for_myself(request: AccessRequestCreate, creator_id: int) -> 
         session.add(access_request)
         session.commit()
         return access_request.id
+
+
+def get_recipient_requests(user_id: int) -> list:
+    with SessionFactory() as session:
+        statement = select(AccessRequest).where(AccessRequest.recipient_id == user_id)
+        return session.scalars(statement)
+
+def get_requester_requests(user_id: int) -> list:
+    with SessionFactory() as session:
+        statement = select(AccessRequest).where(AccessRequest.requester_id == user_id)
+        return session.scalars(statement)
