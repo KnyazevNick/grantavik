@@ -74,4 +74,4 @@ class AccessRequestCreate(BaseModel):
 
     reason: str = Field(min_length=10)
 
-    duration_days: int = Field(default=90, gt=0)
+    duration_days: int = Field(default=90, gt=0, le=365)
