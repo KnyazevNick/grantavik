@@ -5,9 +5,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest, RoleRead, ResourceCreate
+from app.users.schemas import (UserLogin, UserRead,
+                               ChangeTemporaryPasswordRequest, RoleRead,
+                               ResourceCreate, AccessRequestCreate,
+                               )
+
 from app.users.passwords import hash_password, verify_password
-from app.users.models import User, Role, UserRole, Resource
+from app.users.models import User, Role, UserRole, Resource, AccessRequest
 
 from app.db import SessionFactory
 from app.config import settings
@@ -20,22 +24,30 @@ class UsernameAlreadyTakenError(Exception):
 class PasswordChangeRequiredError(Exception):
     pass
 
-class TemporaryPasswordExpired(Exception):
+class TemporaryPasswordExpiredError(Exception):
     pass
 
-class TemporaryAndNewPasswordsAreSame(Exception):
+class TemporaryAndNewPasswordsAreSameError(Exception):
     pass
 
 class RoleAlreadyAssignedError(Exception):
     pass
 
-class ResourceAlreadyExists(Exception):
+class ResourceAlreadyExistsError(Exception):
     pass
 
-class IncorrectUserID(Exception):
+class IncorrectUserIDError(Exception):
+    pass
+
+class ResourceNotFoundError(Exception):
     pass
 
 
+
+status_1 = "pending_manager"
+status_2 = "pending_resource_owner"
+status_3 = "pending_it_admin"
+status_4 = "access_granted!"
 def create_globalhead(user: UserLogin, secret: str) -> UserRead:
     if not settings.bootstrap_secret:
         raise ValueError("Bootstrap authorization failed")
@@ -255,10 +267,10 @@ def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
         
         now = datetime.now(timezone.utc)
         if user.temporary_password_expires_at <= now:
-            raise TemporaryPasswordExpired
+            raise TemporaryPasswordExpiredError
 
         if data.temporary_password == data.new_password:
-            raise TemporaryAndNewPasswordsAreSame
+            raise TemporaryAndNewPasswordsAreSameError
 
 
         user.password_hash = hash_password(data.new_password)
@@ -272,12 +284,12 @@ def create_resource(resource_scheme: ResourceCreate) -> None:
     with SessionFactory() as session:
         owner = get_user_by_id(resource_scheme.owner_id)
         if owner is None:
-            raise IncorrectUserID
+            raise IncorrectUserIDError
         
         name_check = select(Resource.name).where(Resource.name == resource_scheme.resource_name)
         check_result = session.scalar(name_check)
         if check_result is not None:
-            raise ResourceAlreadyExists
+            raise ResourceAlreadyExistsError
         
         resource = Resource(
             name=resource_scheme.resource_name,
@@ -303,3 +315,52 @@ def get_resources() -> list:
         statement = select(Resource).order_by(Resource.id)
         resources = session.scalars(statement).all()
         return resources
+
+
+def get_resource_name_by_id(resource_id: int) -> str | None:
+    with SessionFactory() as session:
+        statement = select(Resource.name).where(Resource.id == resource_id)
+        return session.scalar(statement)
+
+
+def create_request_for_myself(request: AccessRequestCreate, creator_id: int) -> int:
+    resource_check = get_resource_name_by_id(request.resource_id)
+    if resource_check is None:
+        raise ResourceNotFoundError
+    
+    with SessionFactory() as session:
+        #if not manager:
+        access_request = AccessRequest(
+            resource_id=request.resource_id,
+            reason=request.reason,
+            duration_days=request.duration_days,
+            status=status_1,
+            requester_id=creator_id,
+            recipient_id=creator_id,
+        )
+        #if manager:
+        user_roles = get_user_role_names(creator_id)
+        if "manager" in user_roles:
+            access_request = AccessRequest(
+                resource_id=request.resource_id,
+                reason=request.reason,
+                duration_days=request.duration_days,
+                status=status_2,
+                requester_id=creator_id,
+                recipient_id=creator_id,
+            )
+        
+        session.add(access_request)
+        session.commit()
+        return access_request.id
+
+
+def get_recipient_requests(user_id: int) -> list:
+    with SessionFactory() as session:
+        statement = select(AccessRequest).where(AccessRequest.recipient_id == user_id)
+        return session.scalars(statement).all()
+
+def get_requester_requests(user_id: int) -> list:
+    with SessionFactory() as session:
+        statement = select(AccessRequest).where(AccessRequest.requester_id == user_id)
+        return session.scalars(statement).all()

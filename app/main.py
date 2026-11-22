@@ -3,15 +3,20 @@ import secrets
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.users.schemas import UserRead, UserLogin, CreateUserRequest, UserCreated, TokenRead, ChangeTemporaryPasswordRequest, ResourceCreate
+from app.users.schemas import (UserRead, UserLogin, CreateUserRequest, UserCreated,
+                               TokenRead, ChangeTemporaryPasswordRequest, ResourceCreate,
+                               AccessRequestCreate,
+                               )
 from app.users.services import (check_user, get_user_by_id, get_user_by_username, get_user_role_names,
                                 can_create_user_with_role, create_user_with_role,
                                 change_temporary_password, get_role_by_name, assign_role,
                                 create_resource, can_create_resource, get_resources,
+                                create_request_for_myself,
+                                get_recipient_requests, get_requester_requests,
                                 )
-from app.users.services import (UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSame,
-                                TemporaryPasswordExpired, RoleAlreadyAssignedError, ResourceAlreadyExists,
-                                IncorrectUserID
+from app.users.services import (UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSameError,
+                                TemporaryPasswordExpiredError, RoleAlreadyAssignedError, ResourceAlreadyExistsError,
+                                IncorrectUserIDError, ResourceNotFoundError,
                                 )
 from app.users.token import create_access_token, decode_access_token
 
@@ -125,9 +130,9 @@ def login(user: UserLogin) -> TokenRead:
 def auth_change_temp_pass(data: ChangeTemporaryPasswordRequest) -> None:
     try:
         change = change_temporary_password(data)
-    except TemporaryAndNewPasswordsAreSame:
+    except TemporaryAndNewPasswordsAreSameError:
         raise HTTPException(status_code=400, detail="New password must differ from temporary password")
-    except TemporaryPasswordExpired:
+    except TemporaryPasswordExpiredError:
         raise HTTPException(status_code=401)
     else:
         if change is False:
@@ -184,7 +189,24 @@ def add_resource_to_db(
         )
     try:
         create_resource(resource_request)
-    except ResourceAlreadyExists:
+    except ResourceAlreadyExistsError:
         raise HTTPException(status_code=409, detail="resource already exists")
-    except IncorrectUserID:
+    except IncorrectUserIDError:
         raise HTTPException(status_code=404, detail="resource owner has incorrect ID")
+
+
+@grantavik.post('/access/request/myself', status_code=201)
+def create_access_request(request: AccessRequestCreate, creator: UserRead = Depends(get_current_user)):
+    try:
+        new_request_id = create_request_for_myself(request, creator.id)
+    except ResourceNotFoundError:
+        raise HTTPException(status_code=404, detail="resource not found")
+
+    return {"id": new_request_id}
+
+
+@grantavik.get('/access/request')
+def get_users_requests(user: UserRead = Depends(get_current_user)):
+    requests_recipient = get_recipient_requests(user.id)
+    requests_requester = get_requester_requests(user.id)
+    return {"recipient": requests_recipient, "requester": requests_requester}
