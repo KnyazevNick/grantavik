@@ -314,7 +314,7 @@ def get_resources() -> list:
 
 def get_resource_name_by_id(resource_id: int) -> str | None:
     with SessionFactory() as session:
-        statement = select(Role.name).where(Role.id == resource_id)
+        statement = select(Resource.name).where(Resource.id == resource_id)
         return session.scalar(statement)
 
 
@@ -340,9 +340,9 @@ def create_request_for_myself(request: AccessRequestCreate, creator_id: int) -> 
 def get_recipient_requests(user_id: int) -> list:
     with SessionFactory() as session:
         statement = select(AccessRequest).where(AccessRequest.recipient_id == user_id)
-        return session.scalars(statement)
+        return session.scalars(statement).all()
 
 def get_requester_requests(user_id: int) -> list:
     with SessionFactory() as session:
         statement = select(AccessRequest).where(AccessRequest.requester_id == user_id)
-        return session.scalars(statement)
+        return session.scalars(statement).all()
