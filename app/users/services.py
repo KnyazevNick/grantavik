@@ -5,9 +5,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.users.schemas import UserLogin, UserRead, ChangeTemporaryPasswordRequest, RoleRead, ResourceCreate
+from app.users.schemas import (UserLogin, UserRead,
+                               ChangeTemporaryPasswordRequest, RoleRead,
+                               ResourceCreate, AccessRequestCreate,
+                               )
+
 from app.users.passwords import hash_password, verify_password
-from app.users.models import User, Role, UserRole, Resource
+from app.users.models import User, Role, UserRole, Resource, AccessRequest
 
 from app.db import SessionFactory
 from app.config import settings
@@ -33,6 +37,9 @@ class ResourceAlreadyExistsError(Exception):
     pass
 
 class IncorrectUserIDError(Exception):
+    pass
+
+class ResourceNotFoundError(Exception):
     pass
 
 
@@ -303,3 +310,28 @@ def get_resources() -> list:
         statement = select(Resource).order_by(Resource.id)
         resources = session.scalars(statement).all()
         return resources
+
+
+def get_resource_name_by_id(resource_id: int) -> str | None:
+    with SessionFactory() as session:
+        statement = select(Role.name).where(Role.id == resource_id)
+        return session.scalar(statement)
+
+
+def create_request_for_myself(request: AccessRequestCreate, creator_id: int) -> int:
+    resource_check = get_resource_name_by_id(request.resource_id)
+    if resource_check is None:
+        raise ResourceNotFoundError
+    
+    with SessionFactory() as session:
+        access_request = AccessRequest(
+            resource_id=request.resource_id,
+            reason=request.reason,
+            duration_days=request.duration_days,
+            status="pending_manager",
+            requester_id=creator_id,
+            recipient_id=creator_id,
+        )
+        session.add(access_request)
+        session.commit()
+        return access_request.id
