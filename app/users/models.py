@@ -26,7 +26,7 @@ class User(Base):
         DateTime(timezone=True),
         nullable=True,
     )
-    manager_id: Mapped[int] = mapped_column(
+    manager_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id")
     )
 
