@@ -9,8 +9,9 @@ from app.db import Base
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
     username: Mapped[str] = mapped_column(
         String,
         unique=True,
@@ -24,6 +25,9 @@ class User(Base):
     temporary_password_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    manager_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id")
     )
 
 
