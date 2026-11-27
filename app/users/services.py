@@ -43,22 +43,24 @@ class ResourceNotFoundError(Exception):
     pass
 
 
+STATUS_1 = "pending_manager"
+STATUS_2 = "pending_resource_owner"
+STATUS_3 = "pending_it_admin"
+STATUS_4 = "access_granted!"
 
-status_1 = "pending_manager"
-status_2 = "pending_resource_owner"
-status_3 = "pending_it_admin"
-status_4 = "access_granted!"
+
+
 def create_globalhead(user: UserLogin, secret: str) -> UserRead:
     if not settings.bootstrap_secret:
         raise ValueError("Bootstrap authorization failed")
-    
+
     same = compare_digest(
         secret.encode("utf-8"),
         settings.bootstrap_secret.encode("utf-8"),
     )
     if not same:
         raise ValueError("Bootstrap authorization failed")
-    
+
     with SessionFactory() as session:
         statement = (
             select(Role)
@@ -96,7 +98,7 @@ def create_globalhead(user: UserLogin, secret: str) -> UserRead:
             constraint_name = getattr(diagnostic, "constraint_name", None)
 
             if sqlstate == "23505" and constraint_name == "users_username_key":
-                raise ValueError("Username is already taken")
+                raise ValueError("Username is already taken") from error
 
             raise
 
@@ -180,7 +182,7 @@ def check_user(credentials: UserLogin) -> UserRead | None:
         verify = verify_password(credentials.password, user.password_hash)
         if verify is False:
             return None
-        
+
         expires_at = user.temporary_password_expires_at
         if expires_at is not None and expires_at <= datetime.now(timezone.utc):
             return None
@@ -258,13 +260,13 @@ def change_temporary_password(data: ChangeTemporaryPasswordRequest) -> bool:
             .with_for_update()
         )
         user = session.scalar(statement)
-        
+
         if user is None or user.temporary_password_expires_at is None:
             return False
 
         if not verify_password(data.temporary_password, user.password_hash):
             return False
-        
+
         now = datetime.now(timezone.utc)
         if user.temporary_password_expires_at <= now:
             raise TemporaryPasswordExpiredError
@@ -285,12 +287,12 @@ def create_resource(resource_scheme: ResourceCreate) -> None:
         owner = get_user_by_id(resource_scheme.owner_id)
         if owner is None:
             raise IncorrectUserIDError
-        
+
         name_check = select(Resource.name).where(Resource.name == resource_scheme.resource_name)
         check_result = session.scalar(name_check)
         if check_result is not None:
             raise ResourceAlreadyExistsError
-        
+
         resource = Resource(
             name=resource_scheme.resource_name,
             owner_id=resource_scheme.owner_id,
@@ -327,14 +329,14 @@ def create_request_for_myself(request: AccessRequestCreate, creator_id: int) -> 
     resource_check = get_resource_name_by_id(request.resource_id)
     if resource_check is None:
         raise ResourceNotFoundError
-    
+
     with SessionFactory() as session:
         #if not manager:
         access_request = AccessRequest(
             resource_id=request.resource_id,
             reason=request.reason,
             duration_days=request.duration_days,
-            status=status_1,
+            status=STATUS_1,
             requester_id=creator_id,
             recipient_id=creator_id,
         )
@@ -345,11 +347,11 @@ def create_request_for_myself(request: AccessRequestCreate, creator_id: int) -> 
                 resource_id=request.resource_id,
                 reason=request.reason,
                 duration_days=request.duration_days,
-                status=status_2,
+                status=STATUS_2,
                 requester_id=creator_id,
                 recipient_id=creator_id,
             )
-        
+
         session.add(access_request)
         session.commit()
         return access_request.id

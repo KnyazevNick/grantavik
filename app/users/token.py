@@ -26,7 +26,7 @@ def decode_access_token(token: str) -> int | None:
         )
     except InvalidTokenError:
         return None
-    
+
     else:
         try:
             return int(payload["sub"])

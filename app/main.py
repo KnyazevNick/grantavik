@@ -7,16 +7,18 @@ from app.users.schemas import (UserRead, UserLogin, CreateUserRequest, UserCreat
                                TokenRead, ChangeTemporaryPasswordRequest, ResourceCreate,
                                AccessRequestCreate,
                                )
-from app.users.services import (check_user, get_user_by_id, get_user_by_username, get_user_role_names,
+from app.users.services import (get_user_by_id, get_user_by_username, get_user_role_names,
+                                check_user,
                                 can_create_user_with_role, create_user_with_role,
                                 change_temporary_password, get_role_by_name, assign_role,
                                 create_resource, can_create_resource, get_resources,
                                 create_request_for_myself,
                                 get_recipient_requests, get_requester_requests,
                                 )
-from app.users.services import (UsernameAlreadyTakenError, PasswordChangeRequiredError, TemporaryAndNewPasswordsAreSameError,
-                                TemporaryPasswordExpiredError, RoleAlreadyAssignedError, ResourceAlreadyExistsError,
+from app.users.services import (UsernameAlreadyTakenError, PasswordChangeRequiredError,
+                                RoleAlreadyAssignedError, ResourceAlreadyExistsError,
                                 IncorrectUserIDError, ResourceNotFoundError,
+                                TemporaryAndNewPasswordsAreSameError, TemporaryPasswordExpiredError,
                                 )
 from app.users.token import create_access_token, decode_access_token
 
@@ -66,8 +68,8 @@ def get_current_user(
 
 
 @grantavik.get('/user/getuserbyid')
-def find_user_by_id(id: int):
-    result = get_user_by_id(id)
+def find_user_by_id(user_id: int):
+    result = get_user_by_id(user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="user not found")
     return result
@@ -91,7 +93,7 @@ def create_user_db(
     if not can_create:
         raise HTTPException(
             status_code=403,
-            detail="Not allowed to create a user with this role",
+            detail="not allowed to create a user with this role",
         )
     temporary_password = secrets.token_urlsafe(12)
     try:
@@ -103,7 +105,7 @@ def create_user_db(
     except UsernameAlreadyTakenError as error:
         raise HTTPException(
             status_code=409,
-            detail="Username is already taken",
+            detail="username is already taken",
         ) from error
 
     return UserCreated(
@@ -117,12 +119,12 @@ def create_user_db(
 def login(user: UserLogin) -> TokenRead:
     try:
         checked_user = check_user(user)
-    except PasswordChangeRequiredError:
-        raise HTTPException(status_code=403, detail="password change required")
-    
+    except PasswordChangeRequiredError as error:
+        raise HTTPException(status_code=403, detail="password change required") from error
+
     if checked_user is None:
         raise HTTPException(status_code=401, detail="invalid username or password")
-    
+
     return TokenRead(access_token=create_access_token(checked_user.id))
 
 
@@ -130,10 +132,13 @@ def login(user: UserLogin) -> TokenRead:
 def auth_change_temp_pass(data: ChangeTemporaryPasswordRequest) -> None:
     try:
         change = change_temporary_password(data)
-    except TemporaryAndNewPasswordsAreSameError:
-        raise HTTPException(status_code=400, detail="New password must differ from temporary password")
-    except TemporaryPasswordExpiredError:
-        raise HTTPException(status_code=401)
+    except TemporaryAndNewPasswordsAreSameError as error:
+        raise HTTPException(
+            status_code=400,
+            detail="new password must differ from temporary password"
+            ) from error
+    except TemporaryPasswordExpiredError as error:
+        raise HTTPException(status_code=401) from error
     else:
         if change is False:
             raise HTTPException(status_code=401)
@@ -149,11 +154,11 @@ def add_role_to_user(
     can_add_role = can_create_user_with_role(current_user_roles, new_role)
     if can_add_role is False:
         raise HTTPException(status_code=403)
-    
+
     user = get_user_by_username(username)
     if user is None:
         raise HTTPException(status_code=404)
-    
+
     user_roles = get_user_role_names(user.id)
     for user_role in user_roles:
         if user_role == new_role:
@@ -165,13 +170,13 @@ def add_role_to_user(
 
     try:
         assign_role(user.id, role.id)
-    except RoleAlreadyAssignedError:
+    except RoleAlreadyAssignedError as error:
         raise HTTPException(
             status_code=409,
             detail="user already have this role",
-        )
+        ) from error
 @grantavik.get('/resources')
-def show_all_resources(current_user: UserRead = Depends(get_current_user)) -> list: 
+def show_all_resources(current_user: UserRead = Depends(get_current_user)) -> list:  #pylint: disable=unused-argument
     return get_resources()
 
 
@@ -189,18 +194,21 @@ def add_resource_to_db(
         )
     try:
         create_resource(resource_request)
-    except ResourceAlreadyExistsError:
-        raise HTTPException(status_code=409, detail="resource already exists")
-    except IncorrectUserIDError:
-        raise HTTPException(status_code=404, detail="resource owner has incorrect ID")
+    except ResourceAlreadyExistsError as error:
+        raise HTTPException(status_code=409, detail="resource already exists") from error
+    except IncorrectUserIDError as error:
+        raise HTTPException(status_code=404, detail="resource owner has incorrect ID") from error
 
 
 @grantavik.post('/access/request/myself', status_code=201)
-def create_access_request(request: AccessRequestCreate, creator: UserRead = Depends(get_current_user)):
+def create_access_request(
+    request: AccessRequestCreate,
+    creator: UserRead = Depends(get_current_user)
+    ):
     try:
         new_request_id = create_request_for_myself(request, creator.id)
-    except ResourceNotFoundError:
-        raise HTTPException(status_code=404, detail="resource not found")
+    except ResourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail="resource not found") from error
 
     return {"id": new_request_id}
 

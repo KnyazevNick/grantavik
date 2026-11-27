@@ -1,4 +1,4 @@
-from app.check_users import get_user_by_id
+from app.users.services import get_user_by_id
 
 
 
