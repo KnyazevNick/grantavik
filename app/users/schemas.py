@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, ConfigDict, StringConstraints
 from typing import Annotated
+from pydantic import BaseModel, Field, ConfigDict, StringConstraints
 
 
 
